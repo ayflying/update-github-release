@@ -1,4 +1,4 @@
-package main
+package update
 
 import (
 	"archive/tar"
@@ -138,6 +138,8 @@ func (s *sUpdate) UnTarGz(tarGzFileName, targetDir string) (err error) {
 
 // RestartSelf 实现 Windows 平台下的程序自重启
 func (s *sUpdate) RestartSelf() error {
+	// 跨平台统一使用 exec.Command 启动新进程并退出当前进程
+
 	// 1. 获取当前程序的绝对路径
 	exePath, err := os.Executable()
 	if err != nil {
@@ -154,16 +156,19 @@ func (s *sUpdate) RestartSelf() error {
 
 	// 3. 构建新进程命令（路径为当前程序，参数为原参数）
 	cmd := exec.Command(exePath, args...)
+
 	// 设置新进程的工作目录与当前进程一致
-	cmd.Dir, err = os.Getwd()
-	if err != nil {
-		return err
+	if wd, err := os.Getwd(); err == nil {
+		cmd.Dir = wd
 	}
 
-	// 新进程的输出继承当前进程的标准输出（可选，根据需求调整）
+	// 新进程的输出继承当前进程的标准输出（按需保留或重定向）
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+
+	// 在非 Windows 平台上，将子进程置于新会话，减少与父进程信号/控制台耦合
+	setCmdSysProcAttr(cmd)
 
 	// 4. 启动新进程（非阻塞，Start() 后立即返回）
 	if err := cmd.Start(); err != nil {

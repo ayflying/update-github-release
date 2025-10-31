@@ -54,7 +54,7 @@ func main() {
 
 ### 自重启策略
 - Windows：启动同一可执行的新进程（继承原参数），随后退出当前进程。
-- Linux：调用 `ghttp.RestartAllServer`（需结合 `gf` 的服务上下文使用）。
+- Linux：与 Windows 相同，通过 `exec.Command` 启动新进程并退出旧进程（在非 Windows 平台使用新会话隔离，减少信号耦合）。
 
 ## 注意事项
 - 更新过程会将当前正在运行的二进制文件重命名为同名加 `~` 的备份文件（例如：`message.exe` → `message.exe~`）。
