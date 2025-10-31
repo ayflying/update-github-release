@@ -6,7 +6,7 @@
 - 自动对比 `version.txt` 中本地版本与 GitHub 最新 `tag_name`。
 - 根据当前平台自动匹配下载资产（命名需包含 `_<os>_<arch>.`）。
 - 支持解压 `.zip` 与 `.tar.gz`，并将新二进制替换到原路径。
-- Windows/Linux 安全重启：Windows 启动新进程并退出旧进程；Linux 通过 `ghttp.RestartAllServer`。
+- Windows/Linux 安全重启：统一使用 `exec.Command` 启动新进程并退出旧进程（非 Windows 平台启用新会话隔离）。
 
 ## 安装
 

@@ -34,10 +34,52 @@ const versionFile = "version.txt"
 var localVersion = "v0.0.0"
 
 func New(url string) *sUpdate {
-
 	return &sUpdate{
 		ApiURL: url,
 	}
+}
+
+// CheckUpdate 检查是否有新版本
+func (s *sUpdate) CheckUpdate() (err error) {
+	ctx := gctx.New()
+	latestVersion, assets, err := s.getLatestVersion()
+	if err != nil {
+		fmt.Printf("检查更新失败：%v\n", err)
+		return
+	}
+
+	localVersion = gfile.GetContents(versionFile)
+
+	if s.isNewVersion(localVersion, latestVersion) {
+		g.Log().Printf(ctx, "发现新版本：%s（当前版本：%s）", latestVersion, localVersion)
+		//拼接操作系统和架构（格式：OS_ARCH）
+		platform := fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH)
+		//name := fmt.Sprintf("p2p_%s_%s.tar.gz", latestVersion, platform)
+		for _, asset := range assets {
+			if strings.Contains(fmt.Sprintf("_%s.", asset.Name), platform) {
+				g.Log().Debugf(ctx, "下载链接：%s", asset.BrowserDownloadUrl)
+
+				// 下载更新文件
+				fileDownload, err2 := g.Client().Get(ctx, asset.BrowserDownloadUrl)
+				if err2 != nil {
+					return
+				}
+				updateFile := path.Join("download", asset.Name)
+				err = gfile.PutBytes(updateFile, fileDownload.ReadAll())
+
+				err = s.Update(ctx, updateFile)
+				if err != nil {
+					return
+				}
+				// 保存最新版本号到文件
+				gfile.PutContents(versionFile, latestVersion)
+				break
+			}
+		}
+	} else {
+		g.Log().Debugf(ctx, "当前已是最新版本：%s", localVersion)
+	}
+	return
 }
 
 func (s *sUpdate) Update(ctx context.Context, gzFile string) (err error) {
@@ -236,46 +278,4 @@ func (s *sUpdate) getLatestVersion() (string, []*Assets, error) {
 	}
 
 	return release.TagName, release.Assets, nil
-}
-
-func (s *sUpdate) CheckUpdate() (err error) {
-	ctx := gctx.New()
-	latestVersion, assets, err := s.getLatestVersion()
-	if err != nil {
-		fmt.Printf("检查更新失败：%v\n", err)
-		return
-	}
-
-	localVersion = gfile.GetContents(versionFile)
-
-	if s.isNewVersion(localVersion, latestVersion) {
-		g.Log().Printf(ctx, "发现新版本：%s（当前版本：%s）", latestVersion, localVersion)
-		//拼接操作系统和架构（格式：OS_ARCH）
-		platform := fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH)
-		//name := fmt.Sprintf("p2p_%s_%s.tar.gz", latestVersion, platform)
-		for _, asset := range assets {
-			if strings.Contains(fmt.Sprintf("_%s.", asset.Name), platform) {
-				g.Log().Debugf(ctx, "下载链接：%s", asset.BrowserDownloadUrl)
-
-				// 下载更新文件
-				fileDownload, err2 := g.Client().Get(ctx, asset.BrowserDownloadUrl)
-				if err2 != nil {
-					return
-				}
-				updateFile := path.Join("download", asset.Name)
-				err = gfile.PutBytes(updateFile, fileDownload.ReadAll())
-
-				err = s.Update(ctx, updateFile)
-				if err != nil {
-					return
-				}
-				// 保存最新版本号到文件
-				gfile.PutContents(versionFile, latestVersion)
-				break
-			}
-		}
-	} else {
-		g.Log().Debugf(ctx, "当前已是最新版本：%s", localVersion)
-	}
-	return
 }
