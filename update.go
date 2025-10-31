@@ -25,7 +25,8 @@ import (
 )
 
 type sUpdate struct {
-	ApiURL string
+	ApiURL    string
+	IsRestart bool // 是否重启服务
 }
 
 // 本地版本号（建议从编译参数注入，如 -ldflags "-X main.version=v0.1.3"）
@@ -40,7 +41,9 @@ func New(url string) *sUpdate {
 }
 
 // CheckUpdate 检查是否有新版本
-func (s *sUpdate) CheckUpdate() (err error) {
+// @param IsRestart 是否需要立即重启服务
+func (s *sUpdate) CheckUpdate(IsRestart bool) (err error) {
+	s.IsRestart = IsRestart
 	ctx := gctx.New()
 	latestVersion, assets, err := s.getLatestVersion()
 	if err != nil {
@@ -109,14 +112,18 @@ func (s *sUpdate) Update(ctx context.Context, gzFile string) (err error) {
 	//修改文件权限为755
 	err = gfile.Chmod(runFile, 0755)
 
-	go func() {
-		log.Println("5秒后开始重启...")
-		time.Sleep(5 * time.Second)
+	// 如果需要重启服务，5秒后重启
+	if s.IsRestart {
+		go func() {
+			log.Println("5秒后开始重启...")
+			time.Sleep(5 * time.Second)
 
-		if err = s.RestartSelf(); err != nil {
-			log.Fatalf("重启失败：%v", err)
-		}
-	}()
+			if err = s.RestartSelf(); err != nil {
+				log.Fatalf("重启失败：%v", err)
+			}
+		}()
+	}
+
 	return
 }
 
