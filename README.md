@@ -29,7 +29,8 @@ func main() {
     // 例如："https://api.github.com/repos/<owner>/<repo>/releases/latest"
     u := update.New("https://api.github.com/repos/<owner>/<repo>/releases/latest")
 
-    if err := u.CheckUpdate(); err != nil {
+    // true 表示更新后立即重启；可改为 false 仅下载更新不重启
+    if err := u.CheckUpdate(true); err != nil {
         fmt.Println("自更新检查失败:", err)
     }
 
@@ -65,6 +66,17 @@ func main() {
 ## 依赖
 - Go 1.21+（`go.mod` 中为 1.24.8，按你的实际环境调整）
 - `github.com/gogf/gf/v2`
+
+## API 说明
+- 类型：`type sUpdate struct { ApiURL string; IsRestart bool }`
+- 构造：`update.New(apiURL string) *sUpdate`
+- 核心方法：
+  - `(*sUpdate).CheckUpdate(isRestart bool) error`：检查并下载匹配当前平台的资产；当 `isRestart=true` 时，更新完成后约 5 秒触发安全重启；成功后写入最新版本到 `version.txt`。
+  - `(*sUpdate).Update(ctx context.Context, gzFile string) error`：从提供的压缩包（zip/tar.gz）更新运行目录；是否重启由 `s.IsRestart` 控制。
+
+## 平台与构建
+- 非 Windows 平台会通过 `procattr_unix.go` 设置新会话（`Setsid`），降低与父进程信号/控制台耦合。
+- Windows 平台使用 `procattr_windows.go`，不设置 `SysProcAttr` 以确保兼容性。
 
 ## 许可
 本项目采用 MIT 许可协议，详见 `LICENSE` 文件。

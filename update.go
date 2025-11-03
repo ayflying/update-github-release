@@ -1,3 +1,8 @@
+// Package update：GitHub Release 自更新模块
+// - 检查最新版本并匹配当前平台资产（zip/tar.gz）
+// - 解压到运行目录并设置权限
+// - 可选重启：跨平台使用 exec.Command 启动新进程并退出旧进程
+// - 非 Windows 平台启用新会话隔离，减少信号/控制台耦合
 package update
 
 import (
@@ -14,6 +19,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -249,22 +255,53 @@ func (s *sUpdate) RenameRunningFile(exePath string) (string, error) {
 	return backupPath, nil
 }
 
-// 简化版版本对比（仅适用于 vX.Y.Z 格式）
+// isNewVersion 判断最新版本是否比本地版本新（仅适用于 vX.Y.Z 格式）
+// 返回 true 表示有新版本，false 表示无新版本或版本格式错误
 func (s *sUpdate) isNewVersion(local, latest string) bool {
-	// 移除前缀 "v"，按 "." 分割成数字切片
+	// 1. 移除前缀 "v"，分割为字符串切片
 	localParts := strings.Split(strings.TrimPrefix(local, "v"), ".")
 	latestParts := strings.Split(strings.TrimPrefix(latest, "v"), ".")
 
-	// 逐段对比版本号（如 0.1.3 vs 0.1.4 → 后者更新）
-	for i := 0; i < len(localParts) && i < len(latestParts); i++ {
-		if localParts[i] < latestParts[i] {
-			return true
-		} else if localParts[i] > latestParts[i] {
-			return false
-		}
+	// 2. 取最长的长度作为循环次数（避免遗漏更长的版本号，如 1.2 vs 1.2.1）
+	maxLen := len(localParts)
+	if len(latestParts) > maxLen {
+		maxLen = len(latestParts)
 	}
-	// 若前缀相同，长度更长的版本更新（如 0.1 vs 0.1.1）
-	return len(localParts) < len(latestParts)
+
+	// 3. 逐段转换为整数并比较
+	for i := 0; i < maxLen; i++ {
+		// 获取当前段的数值（超出长度的部分按 0 处理）
+		localNum := 0
+		if i < len(localParts) {
+			num, err := strconv.Atoi(localParts[i])
+			if err != nil {
+				// 版本号包含非数字，视为无效版本（不更新）
+				return false
+			}
+			localNum = num
+		}
+
+		latestNum := 0
+		if i < len(latestParts) {
+			num, err := strconv.Atoi(latestParts[i])
+			if err != nil {
+				// 最新版本格式错误，视为无更新
+				return false
+			}
+			latestNum = num
+		}
+
+		// 比较当前段
+		if latestNum > localNum {
+			return true // 最新版本更新
+		} else if latestNum < localNum {
+			return false // 本地版本更新
+		}
+		// 相等则继续比较下一段
+	}
+
+	// 所有段都相等，无新版本
+	return false
 }
 
 func (s *sUpdate) getLatestVersion() (string, []*Assets, error) {

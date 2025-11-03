@@ -2,7 +2,7 @@ package update
 
 import "time"
 
-// 对应 GitHub API 响应的核心字段（按需精简）
+// 对应 GitHub API 响应的核心字段
 type GitHubRelease struct {
 	Url             string     `json:"url"`
 	AssetsUrl       string     `json:"assets_url"`
