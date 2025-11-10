@@ -77,13 +77,19 @@ func (s *sUpdate) CheckUpdate(IsRestart bool) (err error) {
 				g.Log().Debugf(ctx, "下载链接：%s", asset.BrowserDownloadUrl)
 
 				// 下载更新文件
-				fileDownload, err2 := g.Client().Get(ctx, asset.BrowserDownloadUrl)
+				fileDownload, err2 := g.Client().Timeout(time.Second*600).Get(ctx, asset.BrowserDownloadUrl)
 				if err2 != nil {
-					return
+					g.Log().Debugf(ctx, "下载更新文件失败：%v,使用加速地址下载", err2)
+					fileDownload, err = g.Client().Timeout(time.Second*600).Get(ctx, "https://gh-proxy.com/"+asset.BrowserDownloadUrl)
+					if err != nil {
+						return
+					}
 				}
 				updateFile := path.Join("download", asset.Name)
 				err = gfile.PutBytes(updateFile, fileDownload.ReadAll())
-
+				if err != nil {
+					return
+				}
 				err = s.Update(ctx, updateFile)
 				if err != nil {
 					return
