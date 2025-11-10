@@ -109,8 +109,6 @@ func (s *sUpdate) Update(ctx context.Context, gzFile string) (err error) {
 	if gzFile == "" {
 		gzFile = path.Join("download", platform+".gz")
 	}
-	//结束后删除压缩包
-	defer gfile.RemoveFile(gzFile)
 
 	ext := gfile.Ext(gzFile)
 	if ext == ".zip" {
@@ -125,6 +123,9 @@ func (s *sUpdate) Update(ctx context.Context, gzFile string) (err error) {
 	}
 	//修改文件权限为755
 	err = gfile.Chmod(runFile, 0755)
+
+	//结束后删除压缩包
+	gfile.RemoveFile(gzFile)
 
 	// 如果需要重启服务，5秒后重启
 	if s.IsRestart {
