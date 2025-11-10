@@ -57,7 +57,15 @@ func (s *sUpdate) CheckUpdate(IsRestart bool) (err error) {
 		return
 	}
 
-	localVersion = gfile.GetContents(versionFile)
+	//如果版本文件不存在，创建并写入最新版本号
+	if !gfile.Exists(versionFile) {
+		err = gfile.PutContents(versionFile, latestVersion)
+		if err != nil {
+			g.Log().Errorf(ctx, "创建版本文件失败：%v", err)
+		}
+	} else {
+		localVersion = gfile.GetContents(versionFile)
+	}
 
 	if s.isNewVersion(localVersion, latestVersion) {
 		g.Log().Printf(ctx, "发现新版本：%s（当前版本：%s）", latestVersion, localVersion)
