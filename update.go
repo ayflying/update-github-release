@@ -106,6 +106,12 @@ func (s *sUpdate) CheckUpdate(IsRestart bool) (err error) {
 }
 
 func (s *sUpdate) Update(ctx context.Context, gzFile string) (err error) {
+	// 1. 获取当前程序的绝对路径
+	exePath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+
 	//拼接操作系统和架构（格式：OS_ARCH）
 	platform := fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH)
 
@@ -139,7 +145,7 @@ func (s *sUpdate) Update(ctx context.Context, gzFile string) (err error) {
 			log.Println("5秒后开始重启...")
 			time.Sleep(5 * time.Second)
 
-			if err = s.RestartSelf(); err != nil {
+			if err = s.RestartSelf(exePath); err != nil {
 				log.Fatalf("重启失败：%v", err)
 			}
 		}()
@@ -207,14 +213,9 @@ func (s *sUpdate) UnTarGz(tarGzFileName, targetDir string) (err error) {
 }
 
 // RestartSelf 实现 Windows 平台下的程序自重启
-func (s *sUpdate) RestartSelf() error {
+func (s *sUpdate) RestartSelf(exePath string) (err error) {
 	// 跨平台统一使用 exec.Command 启动新进程并退出当前进程
 
-	// 1. 获取当前程序的绝对路径
-	exePath, err := os.Executable()
-	if err != nil {
-		return err
-	}
 	// 处理路径中的符号链接（确保路径正确）
 	exePath, err = filepath.EvalSymlinks(exePath)
 	if err != nil {
